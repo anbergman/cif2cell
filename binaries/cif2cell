@@ -51,7 +51,7 @@ outputprograms = set(['abinit','atat','castep','cfg','coo','cpmd','cp2k','crymol
                       ## 'fleur','ncol','mcsqs','rspt','siesta','sprkkr','vasp', # mcsqs not ready
                       'fleur','hutsepot','lammps','mopac','ncol', 'pwscf', 'quantum-espresso', 'rspt','siesta','sprkkr','vasp',
                       'ase','bmdl','cellgen','cif','kgrn','kfcd','kstr','shape','spacegroup',
-                       'spc','xband','xyz'])
+                       'spc','xband','xyz', 'uppasd'])
 
 # Programs that can deal with alloys
 alloyprograms = set(["atat","cfg","emto","kstr","bmdl","shape","kgrn","kfcd","cif","spc","sprkkr","xband"])
@@ -252,6 +252,7 @@ if options.cartesian:
     options.printcart = True
     options.vaspcart = True
     options.aimscartesian = True
+    options.uppasdcart = True
 # Output reference in specific format?
 if options.bibtexref:
     bibtexref = True
@@ -895,6 +896,8 @@ else:
         outputfile = cif_file_name.replace(".cif","")+"_allatoms.cif"
     elif outputprogram == "ase":
         outputfile = "positions.py"
+    elif outputprogram == "uppasd":
+        outputfile = "inpsd.dat"
     else:
         # A bunch of programs get default output constructed as:
         # 1. chemical abbreviation (i.e. something like H2SO4 or CeRhIn5)
@@ -1827,3 +1830,26 @@ if outputprogram == 'crymol':
     f.write(str(sysfile))
     f.close()
     sys.exit(0)
+
+################################################################################################
+# Output for UppASD
+if outputprogram == 'uppasd':
+    docstring = StandardDocstring()
+    uppasdinput = UppASDinpFile(cd, docstring)
+    if options.cartesian:
+        uppasdinput.printcartpos = True
+    f = open(outputfile, outmode)
+    f.write(str(uppasdinput))
+    f.close()
+
+    uppasdposfile = UppASDposFile(cd)
+    if options.cartesian:
+        uppasdposfile.printcartpos = True
+    f = open('./posfile', outmode)
+    f.write(str(uppasdposfile))
+    f.close()
+
+    uppasdmomfile = UppASDmomFile(cd)
+    f = open('./momfile', outmode)
+    f.write(str(uppasdmomfile))
+    f.close()
