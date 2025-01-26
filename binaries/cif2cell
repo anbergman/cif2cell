@@ -50,7 +50,7 @@ warnings.simplefilter("ignore",DeprecationWarning)
 outputprograms = set(['abinit','atat','castep','cfg','coo','cpmd','cp2k','crymol','crystal09','elk','emto','exciting','fhi-aims',
                       ## 'fleur','ncol','mcsqs','rspt','siesta','sprkkr','vasp', # mcsqs not ready
                       'fleur','hutsepot','lammps','mopac','ncol', 'pwscf', 'quantum-espresso', 'rspt','siesta','sprkkr','vasp',
-                      'ase','bmdl','cellgen','cif','kgrn','kfcd','kstr','shape','spacegroup',
+                      'ase','bmdl','cellgen','cif','kgrn','kfcd','kstr','shape','spacegroup', 'rslmto',
                        'spc','xband','xyz'])
 
 # Programs that can deal with alloys
@@ -948,6 +948,9 @@ else:
         	outputfile = outputfile+".data"
         elif outputprogram == "crymol":
                 outputfile = outputfile+"_cry.in"
+        elif outputprogram == "rslmto":
+                outputfile = outputfile+".nml"
+                rsoutputfile = "lattice.nml"
         else:
             pass
 
@@ -1737,6 +1740,23 @@ if outputprogram == 'siesta':
     f.write(str(siestainput))
     f.close()
 
+################################################################################################
+# Output for RS-LMTO
+if outputprogram == 'rslmto':
+    docstring = StandardDocstring()
+    # Lattice file
+    rslmtoinput = RSLMTOLattFile(cd, docstring)
+    f = open(rsoutputfile, outmode)
+    f.write(str(rslmtoinput))
+    f.close()
+
+if outputprogram == 'rslmto':
+    docstring = StandardDocstring()
+    # Input file
+    rslmtoinput = RSLMTOInpFile(cd, docstring)
+    f = open(outputfile, outmode)
+    f.write(str(rslmtoinput))
+    f.close()
 ################################################################################################
 # Output for SPC file
 if outputprogram == 'spc':

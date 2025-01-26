@@ -74,6 +74,8 @@ __all__ = (
     'SPCFile',
     'MOPACFile',
     'CRYMOLFile',
+    'RSLMTOLattFile',
+    'RSLMTOInpFile',
 )
 
 ################################################################################################
@@ -3427,3 +3429,193 @@ class CRYMOLFile(GeometryOutputFile):
         filestring += "! Remember to insert missing parameters (indicated by []) !"
 
         return filestring
+
+################################################################################################
+# RS-LMTO input files
+
+class RSLMTOLattFile(GeometryOutputFile):
+    """
+    Class for storing the geometrical data needed for RS-LMTO structure input file.
+    __str__ that outputs the contents of an lattice.nml file as a string.
+    """
+
+    def __init__(self, crystalstructure, string):
+        GeometryOutputFile.__init__(self, crystalstructure, string)
+        # Set atomic units for length scale
+        self.cell.newunit("angstrom")
+        # Make sure the docstring has comment form
+        self.docstring = self.docstring.rstrip("\n")
+        tmpstrings = self.docstring.split("\n")
+        self.docstring = ""
+        for string in tmpstrings:
+            string = string.lstrip("#")
+            string = "!"+string+"\n"
+            self.docstring += string
+            
+        self.volume = abs(det3(self.cell.latticevectors))
+        self.wsr = self.cell.lengthscale * (3*self.volume/(self.cell.natoms() * 4 * pi))**third
+        self.tb_cutoff = 3.0 * self.wsr # 3.0 is the default value
+        self.r2 = math.ceil(100*self.tb_cutoff**2)/100.0
+
+    def __str__(self):
+        filestring = self.docstring
+        # Set current units and stuff
+        self.cell.newunit("angstrom")
+        # Determine max width of spcstring
+        width = 0
+        for a in self.cell.atomdata:
+            for b in a:
+                width = max(width, len(b.spcstring()))
+        #
+        # Print header
+        filestring += "&lattice\n"
+        filestring += f"nbulk_atoms = {self.cell.natoms()}\n"
+        filestring += f"ntot        = {self.cell.natoms()}\n"
+        filestring += f"nbas        = {self.cell.natoms()}\n"
+        filestring += f"nrec        = {self.cell.natoms()}\n"
+        filestring += "!\n"
+        
+        # Print lattice vectors
+        t = LatticeMatrix(self.cell.latticevectors)
+        # self.cell.lengthscale
+        for i in range(3):
+            filestring += f"a(:,{i+1}) = {t[i][0]:.10f}, {t[i][1]:.10f}, {t[i][1]:.10f}\n"
+        filestring += "!\n"
+            
+        # Print sites
+        ia = 0
+        for a in self.cell.atomdata:
+            for b in a:
+                ia += 1
+                t = Vector(mvmult3(self.cell.latticevectors, b.position))
+                filestring += f"crd(:,{ia}) = {t[0]:.10f}, {t[1]:.10f}, {t[2]:.10f}\n"
+        filestring += "!\n"
+        
+        # Print special arrays
+        arrays = ['izp', 'no', 'ui', 'ib', 'irec', 'ct']
+        for array in arrays:
+            for ia in range(1, self.cell.natoms()+1):
+                if array == 'ct':
+                    filestring += f"{array}({ia}) = {self.tb_cutoff:.2f}\n"
+                else:
+                    filestring += f"{array}({ia}) = {ia}\n"
+            filestring += "!\n"
+        
+        # Print cutoff squared
+        filestring += f"r2 = {self.r2:.2f}\n"
+        
+        # End namelist
+        filestring += "/\n"
+        
+        return filestring
+
+################################################################################################
+class RSLMTOInpFile(GeometryOutputFile):
+    """
+    Class for storing the geometrical data needed for RS-LMTO structure input file.
+    __str__ that outputs the contents of an lattice.nml file as a string.
+    """
+
+    def __init__(self, crystalstructure, string):
+        GeometryOutputFile.__init__(self, crystalstructure, string)
+        # Set atomic units for length scale
+        self.cell.newunit("angstrom")
+        # Make sure the docstring has comment form
+        self.docstring = self.docstring.rstrip("\n")
+        tmpstrings = self.docstring.split("\n")
+        self.docstring = ""
+        for string in tmpstrings:
+            string = string.lstrip("#")
+            string = "!"+string+"\n"
+            self.docstring += string
+            
+        self.volume = abs(det3(self.cell.latticevectors))
+        self.wsr = self.cell.lengthscale * (3*self.volume/(self.cell.natoms() * 4 * pi))**third
+        self.tb_cutoff = 3.0 * self.wsr # 3.0 is the default value
+        self.r2 = math.ceil(100*self.tb_cutoff**2)/100.0
+        
+        # Defaults
+        self.pre_process = "bravais"
+        self.hoh = ".false."
+        self.rc = 50
+        self.nstep = 20
+        self.channels = 2000
+        self.emin = -1.5
+        self.emax = 0.5
+        self.lld = 21
+        self.recur = "block"
+        self.calctype = "B"
+        self.nsp = 2
+        self.mix = 0.10
+        self.mixtype = "broyden"
+        self.database = "./"
+
+    def __str__(self):
+        filestring = self.docstring
+        # Set current units and stuff
+        self.cell.newunit("angstrom")
+        # Determine max width of spcstring
+        width = 0
+        for a in self.cell.atomdata:
+            for b in a:
+                width = max(width, len(b.spcstring()))
+        #
+        # Print calculation namelist
+        filestring += "&calculation\n"
+        filestring += f"pre_processing = '{self.pre_process}'\n"
+        filestring += f"verbose = T\n"
+        filestring += "/\n"
+        
+        # Print lattice namelist
+        filestring += "&lattice\n"
+        filestring += f"rc = {self.rc}\n"
+        filestring += f"alat = {self.cell.lengthscale}\n"
+        filestring += f"crystal_sym = 'file'\n"
+        filestring += "/\n"
+        
+        # Print atoms namelist
+        tmp = []
+        for a in self.cell.atomdata:
+            for b in a:
+                tmp.append(b.spcstring())
+                
+        self.species = tmp
+        filestring += "&atoms\n"
+        filestring += f"database = '{self.database}'\n"
+        for ia in range(self.cell.natoms()):
+            filestring += f"label({ia+1}) = '{self.species[ia]}'\n"
+        filestring += "/\n"
+        
+        # Print self namelist
+        filestring += "&self\n"
+        filestring += f"nstep = {self.nstep}\n"
+        
+        # Print energy namelist
+        filestring += "/\n" + "&energy\n"
+        filestring += f"fermi = 0.0\n"
+        filestring += f"energy_min = {self.emin}\n"
+        filestring += f"energy_max = {self.emax}\n"
+        filestring += f"channels_ldos = {self.channels}\n"
+        filestring += "/\n"
+        
+        # Print control namelist
+        filestring += "&control\n"
+        filestring += f"calctype = '{self.calctype}'\n"
+        filestring += f"nsp = {self.nsp}\n"
+        filestring += f"lld = {self.lld}\n"
+        filestring += f"recur = '{self.recur}'\n"
+        filestring += "/\n"
+        
+        # Print mix namelist
+        filestring += "&mix\n"
+        filestring += f"beta = {self.mix}\n"
+        filestring += f"mixtype = '{self.mixtype}'\n"
+        filestring += "/\n"
+        
+        # Print hamiltonian namelist
+        filestring += "&hamiltonian\n"
+        filestring += f"hoh = {self.hoh}\n"
+        filestring += "/\n"
+        
+        return filestring
+################################################################################################
