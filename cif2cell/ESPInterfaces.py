@@ -3469,9 +3469,10 @@ class RSLMTOLattFile(GeometryOutputFile):
         #
         # Print header
         filestring += "&lattice\n"
-        filestring += f"nbulk_atoms = {self.cell.natoms()}\n"
+        filestring += f"nbulk_bulk  = {self.cell.natoms()}\n"
         filestring += f"ntot        = {self.cell.natoms()}\n"
         filestring += f"nbas        = {self.cell.natoms()}\n"
+        filestring += f"ntype       = {self.cell.natoms()}\n"
         filestring += f"nrec        = {self.cell.natoms()}\n"
         filestring += "!\n"
         
@@ -3479,7 +3480,7 @@ class RSLMTOLattFile(GeometryOutputFile):
         t = LatticeMatrix(self.cell.latticevectors)
         # self.cell.lengthscale
         for i in range(3):
-            filestring += f"a(:,{i+1}) = {t[i][0]:.10f}, {t[i][1]:.10f}, {t[i][1]:.10f}\n"
+            filestring += f"a(:, {i+1}) = {t[i][0]:.10f}, {t[i][1]:.10f}, {t[i][2]:.10f}\n"
         filestring += "!\n"
             
         # Print sites
@@ -3488,11 +3489,11 @@ class RSLMTOLattFile(GeometryOutputFile):
             for b in a:
                 ia += 1
                 t = Vector(mvmult3(self.cell.latticevectors, b.position))
-                filestring += f"crd(:,{ia}) = {t[0]:.10f}, {t[1]:.10f}, {t[2]:.10f}\n"
+                filestring += f"crd(:, {ia}) = {t[0]:.10f}, {t[1]:.10f}, {t[2]:.10f}\n"
         filestring += "!\n"
         
         # Print special arrays
-        arrays = ['izp', 'no', 'ui', 'ib', 'irec', 'ct']
+        arrays = ['izp', 'no', 'iu', 'ib', 'irec', 'ct']
         for array in arrays:
             for ia in range(1, self.cell.natoms()+1):
                 if array == 'ct':
@@ -3538,15 +3539,16 @@ class RSLMTOInpFile(GeometryOutputFile):
         self.pre_process = "bravais"
         self.hoh = ".false."
         self.rc = 50
-        self.nstep = 20
+        self.nstep = 25
+        self.cold = ".true."
         self.channels = 2000
         self.emin = -1.5
         self.emax = 0.5
         self.lld = 21
         self.recur = "block"
         self.calctype = "B"
-        self.nsp = 2
-        self.mix = 0.10
+        self.nsp = 1  # Scalar relativistic but spin polarized
+        self.mix = 0.15
         self.mixtype = "broyden"
         self.database = "./"
 
@@ -3575,9 +3577,17 @@ class RSLMTOInpFile(GeometryOutputFile):
         
         # Print atoms namelist
         tmp = []
+        counter = {}
+        # Add index to atomlabel
         for a in self.cell.atomdata:
             for b in a:
-                tmp.append(b.spcstring())
+                spc = b.spcstring()
+                if spc in counter:
+                    counter[spc] += 1
+                    tmp.append(f"{spc}{counter[spc]}")
+                else:
+                    counter[spc] = 1
+                    tmp.append(f"{spc}{counter[spc]}")
                 
         self.species = tmp
         filestring += "&atoms\n"
@@ -3589,6 +3599,7 @@ class RSLMTOInpFile(GeometryOutputFile):
         # Print self namelist
         filestring += "&self\n"
         filestring += f"nstep = {self.nstep}\n"
+        filestring += f"cold = {self.cold}\n"
         
         # Print energy namelist
         filestring += "/\n" + "&energy\n"

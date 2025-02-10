@@ -949,7 +949,8 @@ else:
         elif outputprogram == "crymol":
                 outputfile = outputfile+"_cry.in"
         elif outputprogram == "rslmto":
-                outputfile = outputfile+".nml"
+                #outputfile = outputfile+".nml"
+                outputfile = "input.nml"
                 rsoutputfile = "lattice.nml"
         else:
             pass
