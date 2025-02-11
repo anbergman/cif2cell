@@ -3544,11 +3544,11 @@ class RSLMTOInpFile(GeometryOutputFile):
         self.channels = 2000
         self.emin = -1.5
         self.emax = 0.5
-        self.lld = 21
+        self.lld = 26
         self.recur = "block"
         self.calctype = "B"
         self.nsp = 1  # Scalar relativistic but spin polarized
-        self.mix = 0.15
+        self.mix = 0.10
         self.mixtype = "broyden"
         self.database = "./"
 
